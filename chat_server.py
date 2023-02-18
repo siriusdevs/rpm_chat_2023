@@ -1,7 +1,7 @@
 from socket import socket
 from dotenv import load_dotenv
 import os
-from threading import Thread, Lock, Event
+from threading import Thread, Lock
 
 load_dotenv()
 
@@ -9,13 +9,17 @@ ADDRESS = os.getenv('ADDRESS')
 DISCONNECT = os.getenv('DISCONNECT')
 ENCODING = os.getenv('ENCODING')
 AUTH_OK = os.getenv('AUTH_OK')
+GREETING = os.getenv('GREETING')
 try:
     PORT = int(os.getenv('PORT'))
-except:
+except Exception as error:
+    print(f'Error occured while loading PORT:{error} \n, defaults to 8001')
     PORT = 8001
+
 
 def encode(text: str, coding=ENCODING) -> bytes:
     return text.encode(coding)
+
 
 def decode(data: bytes, coding=ENCODING) -> str:
     return data.decode(coding)
@@ -25,13 +29,10 @@ def receiver(client: socket, name: str):
     while True:
         print(f'{name}: {decode(client.recv(1024))}')
 
+
 def new_client(client: socket, cl_address: tuple) -> str:
     global users, users_lock
-    greeting = 'Greeting weary traveller!\n\
-        Welcome to our server! It does absolutely nothing.\n\
-        Send /disconnect to disconnect from server.\
-        \n\n Please tell us your name, hero!'
-    client.send(encode(greeting))
+    client.send(encode(GREETING))
     while True:
         data = decode(client.recv(1024))
         if data == DISCONNECT:
@@ -48,11 +49,13 @@ def new_client(client: socket, cl_address: tuple) -> str:
                 Thread(target=receiver, args=(client, data)).start()
                 return
 
+
 def accept_client(server: socket):
     while True:
         client, cl_address = server.accept()
         print(f'Client connected from {cl_address}')
         Thread(target=new_client, args=(client, cl_address), daemon=True).start()
+
 
 def main(server: socket) -> None:
     server.bind((ADDRESS, PORT))
@@ -66,6 +69,7 @@ def main(server: socket) -> None:
                 user.send(encode(DISCONNECT))
                 user.close()
             break
+
 
 if __name__ == '__main__':
     users: dict = {}

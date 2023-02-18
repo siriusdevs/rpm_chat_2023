@@ -9,16 +9,18 @@ DISCONNECT = os.getenv('DISCONNECT')
 ENCODING = os.getenv('ENCODING')
 try:
     PORT = int(os.getenv('PORT'))
-except:
-    PORT = 8001 # Максим ничего не понимает
-print(ADDRESS, PORT, ENCODING, DISCONNECT)
+except Exception as error:
+    print(f'Error occured while loading PORT:{error} \n, defaults to 8001')
+    PORT = 8001
 
 
 def encode(text: str, coding=ENCODING) -> bytes:
     return text.encode(coding)
 
+
 def decode(data: bytes, coding=ENCODING) -> str:
     return data.decode(coding)
+
 
 def main(server: socket) -> None:
     server.bind((ADDRESS, PORT))
@@ -34,12 +36,13 @@ def main(server: socket) -> None:
             break
         try:
             num = float(msg)
-        except:
+        except ValueError:
             out_msg = 'Pls numbers only'
         else:
             out_msg = str(num ** 2)
         client.send(encode(out_msg))
         print(f'Message from {cl_address}: {msg}')
+
 
 if __name__ == '__main__':
     server = socket()

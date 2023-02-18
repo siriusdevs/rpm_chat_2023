@@ -1,6 +1,7 @@
 from socket import socket
 from chat_server import ADDRESS, PORT, DISCONNECT, AUTH_OK, decode, encode
 
+
 def auth(client: socket) -> bool:
     print(decode(client.recv(1024)))
     while True:
@@ -16,7 +17,8 @@ def auth(client: socket) -> bool:
         if answer == AUTH_OK:
             return True
         print(f'Server response: {answer}')
-        
+
+
 def main(client: socket) -> None:
     client.connect((ADDRESS, PORT))
     if auth(client):
@@ -25,6 +27,7 @@ def main(client: socket) -> None:
             client.send(encode(msg))
             if msg == DISCONNECT:
                 break
+
 
 client = socket()
 try:
