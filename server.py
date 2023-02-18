@@ -18,8 +18,8 @@ def encode(text: str, coding=ENCODING) -> bytes:
     return text.encode(coding)
 
 
-def decode(data: bytes, coding=ENCODING) -> str:
-    return data.decode(coding)
+def decode(msg: bytes, coding=ENCODING) -> str:
+    return msg.decode(coding)
 
 
 def main(server: socket) -> None:

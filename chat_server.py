@@ -21,8 +21,8 @@ def encode(text: str, coding=ENCODING) -> bytes:
     return text.encode(coding)
 
 
-def decode(data: bytes, coding=ENCODING) -> str:
-    return data.decode(coding)
+def decode(msg: bytes, coding=ENCODING) -> str:
+    return msg.decode(coding)
 
 
 def receiver(client: socket, name: str):
@@ -34,19 +34,19 @@ def new_client(client: socket, cl_address: tuple) -> str:
     global users, users_lock
     client.send(encode(GREETING))
     while True:
-        data = decode(client.recv(1024))
-        if data == DISCONNECT:
+        msg = decode(client.recv(1024))
+        if msg == DISCONNECT:
             client.send(encode(DISCONNECT))
             print(f'Client {cl_address} has disconnected')
             return
         with users_lock:
-            if data in users.keys():
+            if msg in users.keys():
                 client.send(encode('Username is taken'))
             else:
                 client.send(encode(AUTH_OK))
-                print(f'Client {cl_address} authenticated by name {data}')
-                users[data] = client
-                Thread(target=receiver, args=(client, data)).start()
+                print(f'Client {cl_address} authenticated by name {msg}')
+                users[msg] = client
+                Thread(target=receiver, args=(client, msg)).start()
                 return
 
 
