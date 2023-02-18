@@ -1,5 +1,5 @@
 from socket import socket
-from chat_server import ADDRESS, PORT, DISCONNECT, AUTH_OK, decode, encode
+from multiclient.chat_server import ADDRESS, PORT, DISCONNECT, AUTH_OK, decode, encode
 
 
 def auth(client: socket) -> bool:

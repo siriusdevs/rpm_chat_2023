@@ -1,5 +1,5 @@
 from socket import socket
-from server import ADDRESS, PORT, DISCONNECT, decode, encode
+from squaring_server.server import ADDRESS, PORT, DISCONNECT, decode, encode
 
 
 client = socket()
