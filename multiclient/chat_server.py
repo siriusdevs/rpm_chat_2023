@@ -10,6 +10,9 @@ DISCONNECT = os.getenv('DISCONNECT')
 ENCODING = os.getenv('ENCODING')
 AUTH_OK = os.getenv('AUTH_OK')
 GREETING = os.getenv('GREETING')
+SHUTDOWN: str = os.getenv('SHUTDOWN', default='/shutdown')
+HELP: str = os.getenv('HELP', default='/help')
+LIST: str = os.getenv('LIST', default='/list')
 try:
     PORT = int(os.getenv('PORT'))
 except Exception as error:
@@ -23,6 +26,12 @@ def encode(text: str, coding=ENCODING) -> bytes:
 
 def decode(msg: bytes, coding=ENCODING) -> str:
     return msg.decode(coding)
+
+
+def users_enum():
+    global users, users_lock
+    with users_lock:
+        return '\n'.join([f'{num}. {user}' for num, user in enumerate(list(users.keys()))])
 
 
 def receiver(client: socket, name: str):
@@ -62,14 +71,23 @@ def main(server: socket) -> None:
     server.listen()
     Thread(target=accept_client, args=(server,), daemon=True).start()
 
+    helper_msg = f'\nAvailiable commands: \n{HELP}\n{SHUTDOWN}\n{LIST}'
     while True:
-        command = input()
-        if command == 'q':
-            for user in users.values():
-                user.send(encode(DISCONNECT))
-                user.close()
-            break
-
+        match input():
+            case str(SHUTDOWN):
+                print('Shutdown!')
+                with users_lock:
+                    for user in users.values():
+                        user.send(encode(DISCONNECT))
+                        user.close()
+                    break
+            case str(LIST):
+                print('LIST')
+            case str(HELP):
+                print(helper_msg)
+            case _:
+                print(f'Unknown command!\n{helper_msg}')
+    
 
 if __name__ == '__main__':
     users: dict = {}
