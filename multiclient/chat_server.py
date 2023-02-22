@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from os import getenv
 from threading import Thread, Lock
 from types import SimpleNamespace
-
+from psycopg2 import connect
 
 consts = SimpleNamespace()
 load_dotenv()
@@ -17,6 +17,11 @@ consts.SHUTDOWN: str = getenv('SHUTDOWN', default='/shutdown')
 consts.HELP: str = getenv('HELP', default='/help')
 consts.LIST: str = getenv('LIST', default='/list')
 consts.WHISPER = getenv('WHISPER', default='/whisper')
+PG_USER = getenv('PG_USER')
+PG_PASSWORD = getenv('PG_PASSWORD')
+PG_HOST = getenv('PG_HOST')
+PG_PORT = getenv('PG_PORT')
+PG_DBNAME = getenv('PG_DBNAME')
 try:
     consts.PORT = int(getenv('PORT'))
 except Exception as error:
@@ -84,6 +89,15 @@ def receiver(client: socket, name: str):
             break
 
 
+def is_banned(name):
+    global db_cursor
+    request = f'SELECT * FROM banlist WHERE name=\'{name}\''
+    db_cursor.execute(request)
+    value = bool(db_cursor.fetchall())
+    print(f'is_banned: {value}')
+    return value
+
+
 def new_client(client: socket, cl_address: tuple) -> str:
     global users, users_lock
     client.send(encode(consts.GREETING))
@@ -94,6 +108,11 @@ def new_client(client: socket, cl_address: tuple) -> str:
         with users_lock:
             if msg in users.keys():
                 client.send(encode('Username is taken'))
+            elif is_banned(msg):
+                client.send(encode('You were permanently banned for a while'))
+                client.send(encode(consts.DISCONNECT))
+                client.close()
+                return
             else:
                 client.send(encode(consts.AUTH_OK))
                 print(f'Client {cl_address} authenticated by name {msg}')
@@ -136,6 +155,8 @@ if __name__ == '__main__':
     users: dict = {}
     users_lock = Lock()
     server = socket()
+    connection = connect(dbname=PG_DBNAME, host=PG_HOST, port=PG_PORT, user=PG_USER, password=PG_PASSWORD)
+    db_cursor = connection.cursor()
     try:
         main(server)
     except KeyboardInterrupt:
@@ -144,3 +165,5 @@ if __name__ == '__main__':
         print(f'Server shut down due to {error.strerror}')
     finally:
         server.close()
+        db_cursor.close()
+        connection.close()
