@@ -1,6 +1,6 @@
 from socket import socket
 from dotenv import load_dotenv
-import os
+from os import getenv
 from threading import Thread, Lock
 from types import SimpleNamespace
 
@@ -8,16 +8,17 @@ from types import SimpleNamespace
 consts = SimpleNamespace()
 load_dotenv()
 
-consts.ADDRESS = os.getenv('ADDRESS')
-consts.DISCONNECT = os.getenv('DISCONNECT')
-consts.ENCODING = os.getenv('ENCODING')
-consts.AUTH_OK = os.getenv('AUTH_OK')
-consts.GREETING = os.getenv('GREETING')
-consts.SHUTDOWN: str = os.getenv('SHUTDOWN', default='/shutdown')
-consts.HELP: str = os.getenv('HELP', default='/help')
-consts.LIST: str = os.getenv('LIST', default='/list')
+consts.ADDRESS = getenv('ADDRESS')
+consts.DISCONNECT = getenv('DISCONNECT')
+consts.ENCODING = getenv('ENCODING')
+consts.AUTH_OK = getenv('AUTH_OK')
+consts.GREETING = getenv('GREETING')
+consts.SHUTDOWN: str = getenv('SHUTDOWN', default='/shutdown')
+consts.HELP: str = getenv('HELP', default='/help')
+consts.LIST: str = getenv('LIST', default='/list')
+consts.WHISPER = getenv('WHISPER', default='/whisper')
 try:
-    consts.PORT = int(os.getenv('PORT'))
+    consts.PORT = int(getenv('PORT'))
 except Exception as error:
     print(f'Error occured while loading PORT:{error} \n, defaults to 8001')
     consts.PORT = 8001
@@ -51,11 +52,28 @@ def parse_msg(msg: str, name: str, client: socket) -> bool:
         case str(consts.LIST):
             client.send(encode(users_enum()))
         case _:
-            msg = f'{name}: {msg}'
-            print(msg)
-            with users_lock:
-                for client in users.values():
-                    client.send(encode(msg))
+            if msg.startswith(consts.WHISPER):
+                parts = msg.split()
+                if len(parts) >= 3:
+                    target_msg = ' '.join(parts[2:])
+                    with users_lock:
+                        target_socket: socket = users.get(parts[1])
+                        if target_socket:
+                            target_socket.send(encode(f'{name} whispered: {target_msg}'))
+                else:
+                    client.send(encode(f'Usage: {consts.WHISPER} user message'))
+            else:
+                msg = f'{name}: {msg}'
+                print(msg)
+                with users_lock:
+                    if not name in users.keys():
+                        return True
+                    for username in users.keys():
+                        if username == name:
+                            continue
+                        user_socket: socket = users.get(username)
+                        if user_socket:
+                            user_socket.send(encode(msg))
     return True
 
 
