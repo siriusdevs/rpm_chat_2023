@@ -46,9 +46,8 @@ def get_args():
         port = int(args.port)
     except Exception as error:
         print(f'Error occured while parsing args: {error}')
-        return args.address, 8001
-    else:
-        return args.address, port
+        port = 8001
+    return args.address, port
 
 
 def main(client: socket) -> None:

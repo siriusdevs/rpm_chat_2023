@@ -22,6 +22,7 @@ PG_PASSWORD = getenv('PG_PASSWORD')
 PG_HOST = getenv('PG_HOST')
 PG_PORT = getenv('PG_PORT')
 PG_DBNAME = getenv('PG_DBNAME')
+SELECTOR_NAMES = getenv('SELECTOR_NAMES')
 try:
     consts.PORT = int(getenv('PORT'))
 except Exception as error:
@@ -43,6 +44,37 @@ def users_enum():
         return '\n'.join([f'{num}. {user}' for num, user in enumerate(list(users.keys()))])
 
 
+def send_all(message: str):
+    with users_lock:
+        for user in users.values():
+            user.send(encode(message))
+            user.close()
+
+
+def normal_msg(msg: str, name: str, client: socket):
+    global users, users_lock
+    if msg.startswith(consts.WHISPER):
+        parts = msg.split()
+        if len(parts) >= 3:
+            target_msg = ' '.join(parts[2:])
+            with users_lock:
+                target_socket: socket = users.get(parts[1])
+                if target_socket:
+                    target_socket.send(encode(f'{name} whispered: {target_msg}'))
+        else:
+            client.send(encode(f'Usage: {consts.WHISPER} user message'))
+    else:
+        with users_lock:
+            if name not in users.keys():
+                return True
+            for username in users.keys():
+                if username == name:
+                    continue
+                user_socket: socket = users.get(username)
+                if user_socket:
+                    user_socket.send(encode(f'{name}: {msg}'))
+
+
 def parse_msg(msg: str, name: str, client: socket) -> bool:
     global users, users_lock
     match msg:
@@ -57,28 +89,7 @@ def parse_msg(msg: str, name: str, client: socket) -> bool:
         case str(consts.LIST):
             client.send(encode(users_enum()))
         case _:
-            if msg.startswith(consts.WHISPER):
-                parts = msg.split()
-                if len(parts) >= 3:
-                    target_msg = ' '.join(parts[2:])
-                    with users_lock:
-                        target_socket: socket = users.get(parts[1])
-                        if target_socket:
-                            target_socket.send(encode(f'{name} whispered: {target_msg}'))
-                else:
-                    client.send(encode(f'Usage: {consts.WHISPER} user message'))
-            else:
-                msg = f'{name}: {msg}'
-                print(msg)
-                with users_lock:
-                    if not name in users.keys():
-                        return True
-                    for username in users.keys():
-                        if username == name:
-                            continue
-                        user_socket: socket = users.get(username)
-                        if user_socket:
-                            user_socket.send(encode(msg))
+            normal_msg(msg, name, client)
     return True
 
 
@@ -91,11 +102,9 @@ def receiver(client: socket, name: str):
 
 def is_banned(name):
     global db_cursor
-    request = f'SELECT * FROM banlist WHERE name=\'{name}\''
+    request = SELECTOR_NAMES.format(name)
     db_cursor.execute(request)
-    value = bool(db_cursor.fetchall())
-    print(f'is_banned: {value}')
-    return value
+    return bool(db_cursor.fetchall())
 
 
 def new_client(client: socket, cl_address: tuple) -> str:
@@ -138,18 +147,15 @@ def main(server: socket) -> None:
         match input():
             case str(consts.SHUTDOWN):
                 print('Shutdown!')
-                with users_lock:
-                    for user in users.values():
-                        user.send(encode(consts.DISCONNECT))
-                        user.close()
-                    break
+                send_all(consts.DISCONNECT)
+                break
             case str(consts.LIST):
                 print(users_enum())
             case str(consts.HELP):
                 print(helper_msg)
             case _:
                 print(f'Unknown command!\n{helper_msg}')
-    
+
 
 if __name__ == '__main__':
     users: dict = {}
